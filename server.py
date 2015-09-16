@@ -11,8 +11,7 @@ import random
 CSV_URL = os.environ.get('CSV_URL')
 APP_ID = os.environ.get('APP_ID')
 YO_API_TOKEN = os.environ.get('YO_API_TOKEN')
-#BASE_API_URL = 'https://api.justyo.co'
-BASE_API_URL = 'http://0.0.0.0:5001'
+BASE_API_URL = 'https://api.justyo.co'
 
 
 class Entry(object):
