@@ -11,7 +11,8 @@ import random
 CSV_URL = os.environ.get('CSV_URL')
 APP_ID = os.environ.get('APP_ID')
 YO_API_TOKEN = os.environ.get('YO_API_TOKEN')
-BASE_API_URL = 'https://api.justyo.co'
+#BASE_API_URL = 'https://api.justyo.co'
+BASE_API_URL = 'http://0.0.0.0:5001'
 
 
 class Entry(object):
@@ -67,7 +68,8 @@ def send_a_question_to_all_users():
             'text': question_text,
             'response_pair': response_pair,
             'username': username,
-            'api_token': YO_API_TOKEN
+            'api_token': YO_API_TOKEN,
+            'sound': 'silent'
         }
         response = requests.post('%s/yo/' % BASE_API_URL, json=params)
 
@@ -111,7 +113,7 @@ def incoming_reply():
               "text": follow_up_text,
               "username": username}
 
-    res = requests.post('http://api.justyo.co/yo/',
+    res = requests.post('https://api.justyo.co/yo/',
                         json=params)
 
     print res, res.text
