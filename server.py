@@ -84,6 +84,27 @@ def trigger():
     return send_a_question_to_all_users()
 
 
+@app.route("/demo/", methods=['POST'])
+def demo():
+
+    username = request.json.get('username')
+
+    question_text = random.choice(entries.keys())
+    entry = entries[question_text]
+    response_pair = entry.left_button_text + '.' + entry.right_button_text
+    params = {
+        'text': question_text,
+        'response_pair': response_pair,
+        'username': username,
+        'api_token': YO_API_TOKEN,
+        'sound': 'silent'
+    }
+    response = requests.post('%s/yo/' % BASE_API_URL, json=params)
+
+    print response, response.text
+    return response.text
+
+
 @app.route('/learn/reply/', methods=['POST'])
 def incoming_reply():
 
