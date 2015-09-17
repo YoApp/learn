@@ -131,7 +131,8 @@ def incoming_reply():
     params = {"api_token": YO_API_TOKEN,
               "response_pair": response_pair,
               "text": follow_up_text,
-              "username": username}
+              "username": username,
+              'sound': 'silent'}
 
     res = requests.post('https://api.justyo.co/yo/',
                         json=params)
