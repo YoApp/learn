@@ -94,7 +94,9 @@ flask_app = Flask(__name__)
 
 @flask_app.route("/trigger/", methods=['GET'])
 def trigger():
-    return send_a_question_to_all_users()
+    apps = db.apps.find()
+    for app in apps:
+        send_a_question_to_all_users(app)
 
 
 @flask_app.route("/demo/<app_username>/", methods=['POST'])
