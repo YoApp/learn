@@ -64,6 +64,19 @@ for app in apps:
     all_apps_entries[app.get('app_username')] = entries
 
 
+def send_question_to_user(app, username, entry):
+    response_pair = entry.left_button_text + '.' + entry.right_button_text
+    params = {
+        'text': entry.question_text,
+        'response_pair': response_pair,
+        'username': username,
+        'api_token': app.get('api_token'),
+        'sound': 'silent'
+    }
+    res = requests.post('%s/yo/' % BASE_API_URL, json=params)
+    return res
+
+
 def send_a_question_to_all_users(app):
     entries = all_apps_entries[app.get('app_username')]
     question_text = random.choice(entries.keys())
@@ -74,19 +87,9 @@ def send_a_question_to_all_users(app):
     users = response.json().get('results')
 
     for user in users:
-        username = user.get('username')
-        response_pair = entry.left_button_text + '.' + entry.right_button_text
-        params = {
-            'text': question_text,
-            'response_pair': response_pair,
-            'username': username,
-            'api_token': app.get('api_token'),
-            'sound': 'silent'
-        }
-        response = requests.post('%s/yo/' % BASE_API_URL, json=params)
+        send_question_to_user(app, user.get('username'), entry)
 
-    print response, response.text
-    return response.text
+    return 'OK'
 
 
 flask_app = Flask(__name__)
@@ -139,7 +142,7 @@ def incoming_reply(app_username):
     entry = entries.get(question_text)
 
     if not entry and reply_text.startswith('Hit me again'):
-        return send_a_question_to_all_users()
+        return send_question_to_user(app, username, entry)
 
     if reply_text == entry.correct_button_text:
         follow_up_text = entry.correct_answer_followup_text
