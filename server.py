@@ -2,15 +2,18 @@
 
 import os
 import urllib2
+
+import pymongo
 import requests
 from flask import request, Flask
 import unicodecsv
 import random
 
 
-CSV_URL = os.environ.get('CSV_URL')
-APP_ID = os.environ.get('APP_ID')
-YO_API_TOKEN = os.environ.get('YO_API_TOKEN')
+client = pymongo.MongoClient(os.environ.get('MONGO_URL'))
+db = client['push-learn']
+
+
 BASE_API_URL = 'https://api.justyo.co'
 
 
@@ -32,31 +35,41 @@ class Entry(object):
         self.followup_right_button_text = None
 
 
-entries = {}
+apps = db.apps.find()
+all_apps_entries = {}
 
-response = urllib2.urlopen(CSV_URL)
-reader = unicodecsv.reader(response, encoding='utf-8')
+for app in apps:
+    entries = {}
 
-for row in reader:
+    response = urllib2.urlopen(app.get('csv_url'))
+    reader = unicodecsv.reader(response, encoding='utf-8')
 
-    entry = Entry()
-    entry.question_text = row[0]
-    entry.left_button_text = row[1]
-    entry.right_button_text = row[2]
-    entry.correct_button_text = row[3]
-    entry.correct_answer_followup_text = row[4]
-    entry.incorrect_answer_followup_text = row[5]
-    entry.followup_left_button_text = row[6]
-    entry.followup_right_button_text = row[7]
+    for row in reader:
 
-    entries[entry.question_text] = entry
+        if row[0] == 'question':
+            continue  # header row
+
+        entry = Entry()
+        entry.question_text = row[0]
+        entry.left_button_text = row[1]
+        entry.right_button_text = row[2]
+        entry.correct_button_text = row[3]
+        entry.correct_answer_followup_text = row[4]
+        entry.incorrect_answer_followup_text = row[5]
+        entry.followup_left_button_text = row[6]
+        entry.followup_right_button_text = row[7]
+
+        entries[entry.question_text] = entry
+
+    all_apps_entries[app.get('app_username')] = entries
 
 
-def send_a_question_to_all_users():
+def send_a_question_to_all_users(app):
+    entries = all_apps_entries[app.get('app_username')]
     question_text = random.choice(entries.keys())
     entry = entries[question_text]
 
-    url = BASE_API_URL + '/apps/' + APP_ID + '/users/?api_token=' + YO_API_TOKEN
+    url = BASE_API_URL + '/apps/' + str(app.get('_id')) + '/users/?api_token=' + app.get('api_token')
     response = requests.get(url)
     users = response.json().get('results')
 
@@ -67,7 +80,7 @@ def send_a_question_to_all_users():
             'text': question_text,
             'response_pair': response_pair,
             'username': username,
-            'api_token': YO_API_TOKEN,
+            'api_token': app.get('api_token'),
             'sound': 'silent'
         }
         response = requests.post('%s/yo/' % BASE_API_URL, json=params)
@@ -76,19 +89,22 @@ def send_a_question_to_all_users():
     return response.text
 
 
-app = Flask(__name__)
+flask_app = Flask(__name__)
 
-@app.route("/trigger/", methods=['GET'])
+
+@flask_app.route("/trigger/", methods=['GET'])
 def trigger():
-
     return send_a_question_to_all_users()
 
 
-@app.route("/demo/", methods=['POST'])
-def demo():
+@flask_app.route("/demo/<app_username>/", methods=['POST'])
+def demo(app_username):
+
+    app = db.apps.find_one({'app_username': app_username.upper()})
 
     username = request.json.get('username')
 
+    entries = all_apps_entries[app.get('app_username')]
     question_text = random.choice(entries.keys())
     entry = entries[question_text]
     response_pair = entry.left_button_text + '.' + entry.right_button_text
@@ -96,7 +112,7 @@ def demo():
         'text': question_text,
         'response_pair': response_pair,
         'username': username,
-        'api_token': YO_API_TOKEN,
+        'api_token': app.get('api_token'),
         'sound': 'silent'
     }
     response = requests.post('%s/yo/' % BASE_API_URL, json=params)
@@ -105,8 +121,10 @@ def demo():
     return response.text
 
 
-@app.route('/learn/reply/', methods=['POST'])
-def incoming_reply():
+@flask_app.route('/learn/<app_username>/reply/', methods=['POST'])
+def incoming_reply(app_username):
+
+    app = db.apps.find_one({'app_username': app_username.upper()})
 
     payload = request.get_json(force=True)
     username = payload.get('username')
@@ -128,7 +146,7 @@ def incoming_reply():
 
     response_pair = entry.followup_left_button_text + '.' + entry.followup_right_button_text
 
-    params = {"api_token": YO_API_TOKEN,
+    params = {"api_token": app.get('api_token'),
               "response_pair": response_pair,
               "text": follow_up_text,
               "username": username,
@@ -143,5 +161,5 @@ def incoming_reply():
 
 
 if __name__ == "__main__":
-    app.debug = True
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")))
+    flask_app.debug = True
+    flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")))
