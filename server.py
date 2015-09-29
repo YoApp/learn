@@ -139,9 +139,12 @@ def incoming_reply(app_username):
 
     reply_to_object = payload.get('reply_to')
     question_text = reply_to_object.get('text')
+    entries = all_apps_entries[app.get('app_username')]
     entry = entries.get(question_text)
 
     if not entry and reply_text.startswith('Hit me again'):
+        question_text = random.choice(entries.keys())
+        entry = entries[question_text]
         return send_question_to_user(app, username, entry)
 
     if reply_text == entry.correct_button_text:
